@@ -21,7 +21,7 @@ using namespace std;
 #define MAX(A,B) ((A) > (B) ? (A):(B)) // defining single line functions....
 #define MIN(A,B) ((A) < (B) ? (A):(B))
 #define ABS(A) ((A) < (0) ? -(A):(A))
-#define FPS 10
+#define FPS 50
 
 string * dictionary;
 int dictionarysize = 370099;
@@ -69,6 +69,8 @@ constexpr int shooterAlphabetY = 0;
 int movingAlphabetX = shooterAlphabetX;
 int movingAlphabetY = shooterAlphabetY;
 int shooterAlphabet;
+constexpr int movingDistance = 4;
+constexpr int movingDistanceSquare = movingDistance * movingDistance;
 
 
 int board[rows][columns]; // 2D-arrays for holding the data...
@@ -216,7 +218,9 @@ int GetAlphabet() {
 	return GetRandInRange(0, 26);
 }
 
-void Pixels2Cell(int px, int py, int & cx, int &cy) {
+void Pixels2Cell(int px, int py, int & cx, int &cy)
+{
+	
 }
 void Cell2Pixels(int cx, int cy, int& px, int& py)
 {
@@ -485,8 +489,24 @@ void displayBoard()
 void moveShooterAlphabet()
 {
 	// Calculate these and then draw.
-	// movingAlphabetX
-	// movingAlphabetY
+
+	if (slope >= 0) 
+	{
+		movingAlphabetX = (movingAlphabetX + sqrt(movingDistanceSquare / (1 + slope * slope)));
+		movingAlphabetY = (movingAlphabetY + slope * sqrt(movingDistanceSquare / (1 + slope * slope)));
+	}
+	else 
+	{
+		movingAlphabetX = (movingAlphabetX - sqrt(movingDistanceSquare / (1 + slope * slope)));
+		movingAlphabetY = (movingAlphabetY - slope * sqrt(movingDistanceSquare / (1 + slope * slope)));
+	}
+	
+	if (movingAlphabetX <= 0 || movingAlphabetX >= width - awidth)
+	{
+		slope = -slope;
+	}
+
+	DrawAlphabet((alphabets)shooterAlphabet, movingAlphabetX, movingAlphabetY, awidth, aheight);
 
 	// When alphabet collides.
 	updateBoard();
@@ -519,7 +539,7 @@ void drawRandomAlphabetAtShooter()
 
 void calculateSlope(int mouseX, int mouseY)
 {
-	slope = (mouseY - shooterAlphabetY) / (mouseX - shooterAlphabetX);
+	slope = (double)(mouseY - shooterAlphabetY) / (mouseX - shooterAlphabetX);
 }
 
 void updateTime()
