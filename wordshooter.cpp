@@ -53,37 +53,39 @@ GLuint mtid[nalphabets];
 constexpr int awidth = 60, aheight = 60; // 60x60 pixels cookies...
 
 // Abdul Hadi's Variables
-constexpr int topPadding = 30;
-constexpr int bottomPadding = aheight;
-constexpr int columns = width / awidth;
-constexpr int rows = (height - topPadding - bottomPadding) / aheight;
-constexpr int emptyCell = -1;
-constexpr int maxTime = 150; // In seconds
+constexpr int TOP_PADDING = 30;
+constexpr int BOTTOM_PADDING = aheight;
+constexpr int COLUMNS = width / awidth;
+constexpr int ROWS = (height - TOP_PADDING - BOTTOM_PADDING) / aheight;
+constexpr int EMPTY_CELL = -1;
+constexpr int MAX_TIME = 150; // In seconds
 int timeLeft;
 time_t start, curr;
 double slope;
 bool isShooterAlphabetMoving = false;
 bool isShooterAlphabetChosen = false;
-constexpr int shooterAlphabetX = width / 2 - awidth / 2;
-constexpr int shooterAlphabetY = 0;
-int movingAlphabetX = shooterAlphabetX;
-int movingAlphabetY = shooterAlphabetY;
+constexpr int SHOOTER_ALPHABET_X = width / 2 - awidth / 2;
+constexpr int SHOOTER_ALPHABET_Y = 0;
+int movingAlphabetX = SHOOTER_ALPHABET_X;
+int movingAlphabetY = SHOOTER_ALPHABET_Y;
 int shooterAlphabet;
-constexpr int movingDistance = 4;
-constexpr int movingDistanceSquare = movingDistance * movingDistance;
+constexpr int MOVING_DISTANCE = 4;
+constexpr int MOVING_DISTANCE_SQUARE = MOVING_DISTANCE * MOVING_DISTANCE;
+constexpr int RIGHT = 1, DOWNWARD = 2, RIGHT_DOWNWARD = 3;
 
-
-int board[rows][columns]; // 2D-arrays for holding the data...
+int board[ROWS][COLUMNS]; // 2D-arrays for holding the data...
 
 // Abdul Hadi's Functions
 void initializeBoard();
 void displayBoard();
 void moveShooterAlphabet();
-void updateBoard();
 void updateTime();
 void drawRandomAlphabetAtShooter();
-bool findAndBurstLargestWord();
+bool findLargestWord(int& row, int& column, int& length, int& direction);
+void burstWord(int row, int column, int length, int direction);
 void calculateSlope(int mouseX, int mouseY);
+bool isInDictionary(string word);
+char getAplhabeticChar(int alphabet);
 // End
 
 //USED THIS CODE FOR WRITING THE IMAGES TO .bin FILE
@@ -130,6 +132,7 @@ void RegisterTextures_Write()
 	}
 	ofile.close();
 }
+
 void RegisterTextures()
 /*Function is used to load the textures from the
 * files and display*/
@@ -180,6 +183,7 @@ void RegisterTextures()
 	}
 	ifile.close();
 }
+
 void DrawAlphabet(const alphabets &cname, int sx, int sy, int cwidth = 60, int cheight = 60)
 	/*Draws a specfic cookie at given position coordinate
 	* sx = position of x-axis from left-bottom
@@ -214,18 +218,21 @@ void DrawAlphabet(const alphabets &cname, int sx, int sy, int cwidth = 60, int c
 
 	//glutSwapBuffers();
 }
+
 int GetAlphabet() {
 	return GetRandInRange(0, 26);
 }
 
 void Pixels2Cell(int px, int py, int & cx, int &cy)
 {
-	
+	cx = px / awidth ;
+	cy = (py - BOTTOM_PADDING) / aheight;
 }
+
 void Cell2Pixels(int cx, int cy, int& px, int& py)
 {
 	px = cx * awidth;
-	py = cy * aheight + bottomPadding;
+	py = cy * aheight + BOTTOM_PADDING;
 }
 
 void DrawShooter(int sx, int sy, int cwidth = 60, int cheight = 60)
@@ -256,9 +263,8 @@ void DrawShooter(int sx, int sy, int cwidth = 60, int cheight = 60)
 
 	//glutSwapBuffers();
 }
-/*
-* Main Canvas drawing function.
-* */
+
+// Main Canvas drawing function.
 void DisplayFunction() {
 	// set the background color using function glClearColor.
 	// to change the background play with the red, green and blue values below.
@@ -357,8 +363,11 @@ void MouseClicked(int button, int state, int x, int y) {
 	{
 		if (state == GLUT_UP)
 		{
-			calculateSlope(x, height - y);
-			isShooterAlphabetMoving = true;
+			if (!isShooterAlphabetMoving)
+			{
+				calculateSlope(x, height - y);
+				isShooterAlphabetMoving = true;
+			}
 		}
 	}
 
@@ -437,47 +446,58 @@ int main(int argc, char*argv[]) {
 void initializeBoard()
 {
 	int i;
-	for (i = 0; i < rows - nfrows; i++)
+	for (i = 0; i < ROWS - nfrows; i++)
 	{
-		for (int j = 0; j < columns; j++)
+		for (int j = 0; j < COLUMNS; j++)
 		{
-			board[i][j] = emptyCell;
+			board[i][j] = EMPTY_CELL;
 		}
     }
 
-	for (; i < rows; i++)
+	for (; i < ROWS; i++)
 	{
-		for (int j = 0; j < columns; j++)
+		for (int j = 0; j < COLUMNS; j++)
 		{
 			board[i][j] = GetAlphabet();
 		}
     }
 
-	while (findAndBurstLargestWord())
+	int row, column, length, direction;
+
+	while (findLargestWord(row, column, length, direction))
 	{
-		for (int i = rows - nfrows; i < rows; i++)
+		burstWord(row, column, length, direction);
+		score += length;
+		for (int i = ROWS - nfrows; i < ROWS; i++)
 		{
-			for (int j = 0; j < columns; j++)
+			for (int j = 0; j < COLUMNS; j++)
 			{
-				if (board[i][j] == emptyCell)
+				if (board[i][j] == EMPTY_CELL)
 				{
 					board[i][j] = GetAlphabet();
 				}
 			}
 		}
 	}
+
+
+	// board[2][2] = AL_A;
+	// board[2][3] = AL_A;
+
+	// isShooterAlphabetChosen = true;
+	// shooterAlphabet = AL_M;
 }
 
 void displayBoard()
 {
 	int alphabet, x, y;
 	
-	for (int i = 0; i < rows; i++)
+	for (int i = 0; i < ROWS; i++)
 	{
-		for (int j = 0; j < columns; j++)
+		for (int j = 0; j < COLUMNS; j++)
 		{
 			alphabet = board[i][j];
-			if (alphabet != emptyCell)
+			if (alphabet != EMPTY_CELL)
 			{
 				Cell2Pixels(j, i, x, y);
 				DrawAlphabet((alphabets)alphabet, x, y, awidth, aheight);
@@ -492,13 +512,13 @@ void moveShooterAlphabet()
 
 	if (slope >= 0) 
 	{
-		movingAlphabetX = (movingAlphabetX + sqrt(movingDistanceSquare / (1 + slope * slope)));
-		movingAlphabetY = (movingAlphabetY + slope * sqrt(movingDistanceSquare / (1 + slope * slope)));
+		movingAlphabetX = (movingAlphabetX + sqrt(MOVING_DISTANCE_SQUARE / (1 + slope * slope)));
+		movingAlphabetY = (movingAlphabetY + slope * sqrt(MOVING_DISTANCE_SQUARE / (1 + slope * slope)));
 	}
 	else 
 	{
-		movingAlphabetX = (movingAlphabetX - sqrt(movingDistanceSquare / (1 + slope * slope)));
-		movingAlphabetY = (movingAlphabetY - slope * sqrt(movingDistanceSquare / (1 + slope * slope)));
+		movingAlphabetX = (movingAlphabetX - sqrt(MOVING_DISTANCE_SQUARE / (1 + slope * slope)));
+		movingAlphabetY = (movingAlphabetY - slope * sqrt(MOVING_DISTANCE_SQUARE / (1 + slope * slope)));
 	}
 	
 	if (movingAlphabetX <= 0 || movingAlphabetX >= width - awidth)
@@ -508,23 +528,151 @@ void moveShooterAlphabet()
 
 	DrawAlphabet((alphabets)shooterAlphabet, movingAlphabetX, movingAlphabetY, awidth, aheight);
 
-	// When alphabet collides.
-	updateBoard();
+	int cx, cy;
+
+	Pixels2Cell(movingAlphabetX + awidth / 2, movingAlphabetY + aheight, cx, cy);
+
+	if (board[cy][cx] != EMPTY_CELL)
+	{
+		board[cy - 1][cx] = shooterAlphabet;
+		isShooterAlphabetMoving = false;
+		isShooterAlphabetChosen = false;
+		movingAlphabetX = SHOOTER_ALPHABET_X;
+		movingAlphabetY = SHOOTER_ALPHABET_Y;
+
+		int row, column, length, direction;
+
+		if (findLargestWord(row, column, length, direction))
+		{
+			burstWord(row, column, length, direction);
+			score += length;
+		}
+	}
 }
 
-void updateBoard()
+char getAlphabeticChar(int alphabet)
 {
-
+	return alphabet + 'a';
 }
 
-bool findAndBurstLargestWord()
+bool isInDictionary(string word)
 {
-
-
-
-
+	for ( int i = 0; i < dictionarysize; i++)
+	{
+		if (word == dictionary[i])
+		{
+			return true;
+		}
+	}
 
 	return false;
+}
+
+bool findLargestWord(int& row, int& column, int& length, int& direction)
+{
+	string word;
+	length = 0;
+
+	for (int i = ROWS - 1; i >= 0; i--)
+	{
+		for (int j = 0; j < COLUMNS; j++)
+		{
+			for ( int k = j; k < COLUMNS; k++)
+			{
+				if (board[i][k] == EMPTY_CELL)
+				{
+					word = "";
+					break;
+				}
+
+				word += getAlphabeticChar(board[i][k]);
+
+				if (isInDictionary(word) && word.length() > length)
+				{
+					direction = RIGHT;
+					length = word.length();
+					row = i;
+					column = j;
+				}
+			}
+
+			word = "";
+
+			for ( int k = i; k >= 0; k--)
+			{
+				if (board[k][j] == EMPTY_CELL)
+				{
+					word = "";
+					break;
+				}
+
+				word += getAlphabeticChar(board[k][j]);
+
+				if (isInDictionary(word) && word.length() > length)
+				{
+					direction = DOWNWARD;
+					length = word.length();
+					row = i;
+					column = j;
+				}
+			}
+
+			
+			word = "";
+
+			for (int m = i, n = j; m >= 0 && n < COLUMNS; m--, n++)
+			{
+				if (board[m][n] == EMPTY_CELL)
+				{
+					word = "";
+					break;
+				}
+
+				word += getAlphabeticChar(board[m][n]);
+
+				if (isInDictionary(word) && word.length() > length)
+				{
+					direction = RIGHT_DOWNWARD;
+					length = word.length();
+					row = i;
+					column = j;
+				}
+			}
+		}
+	}
+
+	if (length > 0)
+	{
+		return true;
+	}
+	
+	return false;
+}
+
+void burstWord(int row, int column, int length, int direction)
+{
+	if (direction == RIGHT)
+	{
+		for (int j = column; j < length + column; j++)
+		{
+			board[row][j] = EMPTY_CELL;
+		}
+	}
+	else if (direction == DOWNWARD)
+	{
+		for (int i = row; i > row - length; i--)
+		{
+			board[i][column] = EMPTY_CELL;
+		}
+	}
+	else if (direction == RIGHT_DOWNWARD)
+	{
+		
+		for (int i = row, j = column; (j < length + column) && (i > row - length); i--, j++)
+		{
+			board[i][j] = EMPTY_CELL;
+		}
+	}
 }
 
 void drawRandomAlphabetAtShooter()
@@ -534,18 +682,19 @@ void drawRandomAlphabetAtShooter()
 		shooterAlphabet = GetAlphabet();
 		isShooterAlphabetChosen = true;
 	}
-	DrawAlphabet((alphabets)shooterAlphabet, shooterAlphabetX, shooterAlphabetY, awidth, aheight);
+	
+	DrawAlphabet((alphabets)shooterAlphabet, SHOOTER_ALPHABET_X, SHOOTER_ALPHABET_Y, awidth, aheight);
 }
 
 void calculateSlope(int mouseX, int mouseY)
 {
-	slope = (double)(mouseY - shooterAlphabetY) / (mouseX - shooterAlphabetX);
+	slope = (double)(mouseY - SHOOTER_ALPHABET_Y) / (mouseX - SHOOTER_ALPHABET_X);
 }
 
 void updateTime()
 {
 	time(&curr);
-	timeLeft = maxTime - difftime(curr, start);
+	timeLeft = MAX_TIME - difftime(curr, start);
 }
 
 
