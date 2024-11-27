@@ -11,9 +11,9 @@
 //#include <GL/gl.h>
 //#include <GL/glut.h>
 #include <iostream>
-#include<string>
-#include<cmath>
-#include<fstream>
+#include <string>
+#include <cmath>
+#include <fstream>
 #include <cstdlib>
 #include <ctime>
 #include "util.h"
@@ -73,6 +73,8 @@ constexpr int MOVING_DISTANCE = 4;
 constexpr int MOVING_DISTANCE_SQUARE = MOVING_DISTANCE * MOVING_DISTANCE;
 constexpr int RIGHT = 1, DOWNWARD = 2, RIGHT_DOWNWARD = 3;
 
+ofstream file;
+
 int board[ROWS][COLUMNS]; // 2D-arrays for holding the data...
 
 // Abdul Hadi's Functions
@@ -81,11 +83,12 @@ void displayBoard();
 void moveShooterAlphabet();
 void updateTime();
 void drawRandomAlphabetAtShooter();
-bool findLargestWord(int& row, int& column, int& length, int& direction);
 void burstWord(int row, int column, int length, int direction);
 void calculateSlope(int mouseX, int mouseY);
 bool isInDictionary(string word);
 char getAplhabeticChar(int alphabet);
+void writeWordInFile(string word);
+string findLargestWord(int& row, int& column, int& direction);
 // End
 
 //USED THIS CODE FOR WRITING THE IMAGES TO .bin FILE
@@ -288,7 +291,6 @@ void DisplayFunction() {
 		drawRandomAlphabetAtShooter();
 	}
 	
-
 	DrawString(40, height - 20, width, height + 5, "Score " + Num2Str(score), colors[BLUE_VIOLET]);
 	DrawString(width / 2 - 30, height - 25, width, height,
 		"Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
@@ -370,7 +372,6 @@ void MouseClicked(int button, int state, int x, int y) {
 			}
 		}
 	}
-
 	else if (button == GLUT_RIGHT_BUTTON) // dealing with right button
 	{
 
@@ -411,6 +412,8 @@ int main(int argc, char*argv[]) {
 	dictionary = new string[dictionarysize]; 
 	ReadWords("words_alpha.txt", dictionary); // dictionary is an array of strings
 	
+	file.open("words_made.txt");
+
 	initializeBoard();
 	time(&start);
 
@@ -440,6 +443,8 @@ int main(int argc, char*argv[]) {
 
 	glutMainLoop();
 
+	file.close();
+
 	return 1;
 }
 
@@ -462,12 +467,19 @@ void initializeBoard()
 		}
     }
 
-	int row, column, length, direction;
+	int row, column, direction;
+	string word;
 
-	while (findLargestWord(row, column, length, direction))
-	{
-		burstWord(row, column, length, direction);
-		score += length;
+	do {
+		word = findLargestWord(row, column, direction);
+
+		if (!word.empty())
+		{
+			writeWordInFile(word);
+			burstWord(row, column, word.length(), direction);
+			score += word.length();
+		}
+		
 		for (int i = ROWS - nfrows; i < ROWS; i++)
 		{
 			for (int j = 0; j < COLUMNS; j++)
@@ -478,14 +490,13 @@ void initializeBoard()
 				}
 			}
 		}
-	}
+	} while (!word.empty());
 
+	board[2][2] = AL_A;
+	board[2][3] = AL_A;
 
-	// board[2][2] = AL_A;
-	// board[2][3] = AL_A;
-
-	// isShooterAlphabetChosen = true;
-	// shooterAlphabet = AL_M;
+	isShooterAlphabetChosen = true;
+	shooterAlphabet = AL_M;
 }
 
 void displayBoard()
@@ -540,12 +551,16 @@ void moveShooterAlphabet()
 		movingAlphabetX = SHOOTER_ALPHABET_X;
 		movingAlphabetY = SHOOTER_ALPHABET_Y;
 
-		int row, column, length, direction;
-
-		if (findLargestWord(row, column, length, direction))
+		int row, column, direction;
+		string word = findLargestWord(row, column, direction);
+	
+		if (!word.empty())
 		{
-			burstWord(row, column, length, direction);
-			score += length;
+			writeWordInFile(word);
+
+			//glutPostRedisplay();
+			burstWord(row, column, word.length(), direction);
+			score += word.length();
 		}
 	}
 }
@@ -568,10 +583,9 @@ bool isInDictionary(string word)
 	return false;
 }
 
-bool findLargestWord(int& row, int& column, int& length, int& direction)
+string findLargestWord(int& row, int& column, int& direction)
 {
-	string word;
-	length = 0;
+	string word, largestWord;
 
 	for (int i = ROWS - 1; i >= 0; i--)
 	{
@@ -587,12 +601,12 @@ bool findLargestWord(int& row, int& column, int& length, int& direction)
 
 				word += getAlphabeticChar(board[i][k]);
 
-				if (isInDictionary(word) && word.length() > length)
+				if (isInDictionary(word) && word.length() > largestWord.length())
 				{
 					direction = RIGHT;
-					length = word.length();
 					row = i;
 					column = j;
+					largestWord = word;
 				}
 			}
 
@@ -608,15 +622,14 @@ bool findLargestWord(int& row, int& column, int& length, int& direction)
 
 				word += getAlphabeticChar(board[k][j]);
 
-				if (isInDictionary(word) && word.length() > length)
+				if (isInDictionary(word) && word.length() > largestWord.length())
 				{
 					direction = DOWNWARD;
-					length = word.length();
 					row = i;
 					column = j;
+					largestWord = word;
 				}
 			}
-
 			
 			word = "";
 
@@ -630,23 +643,18 @@ bool findLargestWord(int& row, int& column, int& length, int& direction)
 
 				word += getAlphabeticChar(board[m][n]);
 
-				if (isInDictionary(word) && word.length() > length)
+				if (isInDictionary(word) && word.length() > largestWord.length())
 				{
 					direction = RIGHT_DOWNWARD;
-					length = word.length();
 					row = i;
 					column = j;
+					largestWord = word;
 				}
 			}
 		}
 	}
 
-	if (length > 0)
-	{
-		return true;
-	}
-	
-	return false;
+	return largestWord;
 }
 
 void burstWord(int row, int column, int length, int direction)
@@ -667,7 +675,6 @@ void burstWord(int row, int column, int length, int direction)
 	}
 	else if (direction == RIGHT_DOWNWARD)
 	{
-		
 		for (int i = row, j = column; (j < length + column) && (i > row - length); i--, j++)
 		{
 			board[i][j] = EMPTY_CELL;
@@ -697,5 +704,9 @@ void updateTime()
 	timeLeft = MAX_TIME - difftime(curr, start);
 }
 
+void writeWordInFile(string word)
+{
+	file << word << '\n';
+}
 
 #endif /* */
