@@ -1,9 +1,3 @@
-vols
-dang
-lid
-mna
-yak
-pht
-rad
-vex
-eve
+doats
+nei
+fam

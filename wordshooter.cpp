@@ -423,7 +423,7 @@ int main(int argc, char*argv[]) {
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA); // we will be using color display mode
 	glutInitWindowPosition(50, 50); // set the initial position of our window
 	glutInitWindowSize(width, height); // set the size of our window
-	glutCreateWindow("ITCs Word Shooter"); // set the title of our game window
+	glutCreateWindow("ITCs Word Shooter by Abdul Hadi - 24i-2599"); // set the title of our game window
 	//SetCanvasSize(width, height); // set the number of pixels...
 
 	// Register your functions to the library,
