@@ -39,7 +39,6 @@ int nfrows = 2; // initially number of full rows //
 float score = 0;
 int bwidth = 130;
 int bheight = 10;
-int bsx, bsy;
 const int nalphabets = 26;
 enum alphabets {
 	AL_A, AL_B, AL_C, AL_D, AL_E, AL_F, AL_G, AL_H, AL_I, AL_J, AL_K, AL_L, AL_M, AL_N, AL_O, AL_P, AL_Q, AL_R, AL_S, AL_T, AL_U, AL_V, AL_W, AL_X, AL_Y, AL_Z
@@ -58,8 +57,8 @@ constexpr int BOTTOM_PADDING = aheight;
 constexpr int COLUMNS = width / awidth;
 constexpr int ROWS = (height - TOP_PADDING - BOTTOM_PADDING) / aheight;
 constexpr int EMPTY_CELL = -1;
-constexpr int MAX_TIME = 150; // In seconds
-int timeLeft;
+constexpr int MAX_TIME = 5; // In seconds
+int timeLeft = MAX_TIME;
 time_t start, curr;
 double slope;
 bool isShooterAlphabetMoving = false;
@@ -72,6 +71,7 @@ int shooterAlphabet;
 constexpr int MOVING_DISTANCE = 4;
 constexpr int MOVING_DISTANCE_SQUARE = MOVING_DISTANCE * MOVING_DISTANCE;
 constexpr int RIGHT = 1, DOWNWARD = 2, RIGHT_DOWNWARD = 3;
+int mouseX, mouseY;
 
 ofstream file;
 
@@ -85,9 +85,11 @@ void updateTime();
 void drawRandomAlphabetAtShooter();
 void burstWord(int row, int column, int length, int direction);
 void calculateSlope(int mouseX, int mouseY);
-bool isInDictionary(string word);
-char getAplhabeticChar(int alphabet);
 void writeWordInFile(string word);
+void displayGameOver();
+char getAplhabeticChar(int alphabet);
+bool detectCollision();
+bool isInDictionary(string word);
 string findLargestWord(int& row, int& column, int& direction);
 // End
 
@@ -277,27 +279,35 @@ void DisplayFunction() {
 		1.0/*Blue Component*/, 0 /*Alpha component*/); // Red==Green==Blue==1 --> White Colour
 	glClear(GL_COLOR_BUFFER_BIT); //Update the colors
 
-	//write your drawing commands here or call your drawing functions...
-	updateTime();
-	displayBoard();
-
-	if (isShooterAlphabetMoving)
+	if (timeLeft > 0)
 	{
-		moveShooterAlphabet();
+		//write your drawing commands here or call your drawing functions...
+		updateTime();
+		displayBoard();
+
+		if (isShooterAlphabetMoving)
+		{
+			moveShooterAlphabet();
+		}
+
+		if (!isShooterAlphabetMoving)
+		{
+			drawRandomAlphabetAtShooter();
+		}
+		
+		DrawString(40, height - 20, width, height + 5, "Score " + Num2Str(score), colors[BLUE_VIOLET]);
+		DrawString(width / 2 - 30, height - 25, width, height,
+			"Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
+
+		// #----------------- Write your code till here ----------------------------#
+		//DO NOT MODIFY THESE LINES
+		DrawShooter((width / 2) - bwidth / 2, 0, bwidth, bheight);
+	}
+	else
+	{
+		displayGameOver();
 	}
 
-	if (!isShooterAlphabetMoving)
-	{
-		drawRandomAlphabetAtShooter();
-	}
-	
-	DrawString(40, height - 20, width, height + 5, "Score " + Num2Str(score), colors[BLUE_VIOLET]);
-	DrawString(width / 2 - 30, height - 25, width, height,
-		"Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
-
-	// #----------------- Write your code till here ----------------------------#
-	//DO NOT MODIFY THESE LINES
-	DrawShooter((width / 2) - bwidth / 2, 0, bwidth, bheight);
 	glutSwapBuffers();
 	//DO NOT MODIFY THESE LINES..
 }
@@ -367,7 +377,9 @@ void MouseClicked(int button, int state, int x, int y) {
 		{
 			if (!isShooterAlphabetMoving)
 			{
-				calculateSlope(x, height - y);
+				mouseX = x;
+				mouseY = height - y;
+				calculateSlope(mouseX, mouseY);
 				isShooterAlphabetMoving = true;
 			}
 		}
@@ -492,11 +504,15 @@ void initializeBoard()
 		}
 	} while (!word.empty());
 
-	board[2][2] = AL_A;
-	board[2][3] = AL_A;
+	// board[3][5] = AL_A;
+	// board[2][6] = AL_A;
+	// board[2][6] = AL_W;
 
-	isShooterAlphabetChosen = true;
-	shooterAlphabet = AL_M;
+	// board[2][12] = AL_M;
+	// board[2][11] = AL_A;
+
+	// isShooterAlphabetChosen = true;
+	// shooterAlphabet = AL_M;
 }
 
 void displayBoard()
@@ -517,9 +533,36 @@ void displayBoard()
 	}
 }
 
+bool detectCollision()
+{
+	int topCX, topCY, leftCX, leftCY, rightCX, rightCY;
+	
+	Pixels2Cell(movingAlphabetX + awidth / 2, movingAlphabetY + aheight, topCX, topCY);
+	Pixels2Cell(movingAlphabetX, movingAlphabetY + aheight / 2, leftCX, leftCY);
+	Pixels2Cell(movingAlphabetX + awidth, movingAlphabetY + aheight / 2, rightCX, rightCY);
+
+	if (board[topCY][topCX] != EMPTY_CELL && topCY > 0)
+	{
+		board[topCY - 1][topCX] = shooterAlphabet;
+		return true;
+	}
+	else if (board[leftCY][leftCX] != EMPTY_CELL)
+	{
+		board[leftCY][leftCX + 1] = shooterAlphabet;
+		return true;
+	}
+	else if (board[rightCY][rightCX] != EMPTY_CELL)
+	{
+		board[rightCY][rightCX - 1] = shooterAlphabet;
+		return true;
+	}
+
+	return false;
+}
+
 void moveShooterAlphabet()
 {
-	// Calculate these and then draw.
+	
 
 	if (slope >= 0) 
 	{
@@ -539,13 +582,8 @@ void moveShooterAlphabet()
 
 	DrawAlphabet((alphabets)shooterAlphabet, movingAlphabetX, movingAlphabetY, awidth, aheight);
 
-	int cx, cy;
-
-	Pixels2Cell(movingAlphabetX + awidth / 2, movingAlphabetY + aheight, cx, cy);
-
-	if (board[cy][cx] != EMPTY_CELL)
+	if (detectCollision())
 	{
-		board[cy - 1][cx] = shooterAlphabet;
 		isShooterAlphabetMoving = false;
 		isShooterAlphabetChosen = false;
 		movingAlphabetX = SHOOTER_ALPHABET_X;
@@ -695,7 +733,15 @@ void drawRandomAlphabetAtShooter()
 
 void calculateSlope(int mouseX, int mouseY)
 {
-	slope = (double)(mouseY - SHOOTER_ALPHABET_Y) / (mouseX - SHOOTER_ALPHABET_X);
+	if (mouseX != movingAlphabetX)
+	{
+		slope = (double)(mouseY - movingAlphabetY) / (mouseX - movingAlphabetX);
+	}
+}
+
+void writeWordInFile(string word)
+{
+	file << word << '\n';
 }
 
 void updateTime()
@@ -704,9 +750,21 @@ void updateTime()
 	timeLeft = MAX_TIME - difftime(curr, start);
 }
 
-void writeWordInFile(string word)
+void displayGameOver()
 {
-	file << word << '\n';
+	DrawString(width / 2 - 79, height / 2, width, height, "GAME OVER", colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2, width, height, "GAME OVER", colors[DARK_GRAY]);
+	DrawString(width / 2 - 81, height / 2, width, height, "GAME OVER", colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 + 1, width, height, "GAME OVER", colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 - 1, width, height, "GAME OVER", colors[DARK_GRAY]);
+
+	DrawString(width / 2 - 79, height / 2 - 30, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 - 30, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
+	DrawString(width / 2 - 81, height / 2 - 30, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 - 30, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 - 31, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
+	DrawString(width / 2 - 80, height / 2 - 29, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
 }
+
 
 #endif /* */
