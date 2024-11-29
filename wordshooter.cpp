@@ -64,9 +64,11 @@ double slope;
 bool isShooterAlphabetMoving = false;
 constexpr int SHOOTER_ALPHABET_X = width / 2 - awidth / 2;
 constexpr int SHOOTER_ALPHABET_Y = 0;
+constexpr int NEXT_SHOOTER_ALPHABET_X = width - 2 * awidth;
+constexpr int NEXT_SHOOTER_ALPHABET_Y = 0;
 int movingAlphabetX = SHOOTER_ALPHABET_X;
 int movingAlphabetY = SHOOTER_ALPHABET_Y;
-int shooterAlphabet;
+int shooterAlphabet, nextShooterAlphabet;
 constexpr int MOVING_DISTANCE = 5;
 constexpr int MOVING_DISTANCE_SQUARE = MOVING_DISTANCE * MOVING_DISTANCE;
 constexpr int RIGHT = 1, DOWNWARD = 2, RIGHT_DOWNWARD = 3;
@@ -85,7 +87,6 @@ void initializeBoard();
 void displayBoard();
 void moveShooterAlphabet();
 void updateTime();
-void drawRandomAlphabetAtShooter();
 void burstWord();
 void calculateSlope(int mouseX, int mouseY);
 void writeWordInFile(string word);
@@ -293,11 +294,13 @@ void DisplayFunction() {
 		{
 			moveShooterAlphabet();
 		}
-
-		if (!isShooterAlphabetMoving)
+		else
 		{
-			drawRandomAlphabetAtShooter();
+			DrawAlphabet((alphabets)shooterAlphabet, SHOOTER_ALPHABET_X, SHOOTER_ALPHABET_Y, awidth, aheight);
 		}
+
+		DrawAlphabet((alphabets)nextShooterAlphabet, NEXT_SHOOTER_ALPHABET_X, NEXT_SHOOTER_ALPHABET_Y, awidth, aheight);
+		DrawString(NEXT_SHOOTER_ALPHABET_X - awidth + 10, NEXT_SHOOTER_ALPHABET_Y + 1.3 * aheight, width, height, "Next Alphabet", colors[DARK_GRAY]);
 		
 		if (isBursting && currentFrame == 0)
 		{
@@ -307,8 +310,7 @@ void DisplayFunction() {
 		currentFrame = (currentFrame + 1) % framesToSkip;
 		
 		DrawString(40, height - 20, width, height + 5, "Score " + Num2Str(score), colors[BLUE_VIOLET]);
-		DrawString(width / 2 - 30, height - 25, width, height,
-			"Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
+		DrawString(width / 2 - 30, height - 25, width, height, "Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
 
 		// #----------------- Write your code till here ----------------------------#
 		//DO NOT MODIFY THESE LINES
@@ -397,7 +399,7 @@ void MouseClicked(int button, int state, int x, int y) {
 	{
 
 	}
-	
+
 	glutPostRedisplay();
 }
 /*This function is called (automatically) whenever any printable key (such as x,b, enter, etc.)
@@ -436,6 +438,7 @@ int main(int argc, char*argv[]) {
 	file.open("words_made.txt");
 
 	shooterAlphabet = GetAlphabet();
+	nextShooterAlphabet = GetAlphabet();
 	initializeBoard();
 	time(&start);
 
@@ -498,9 +501,7 @@ void initializeBoard()
 		{
 			writeWordInFile(word);
 			replaceWord();
-
 			score += word.length();
-			cout << "Word found at row: " << wordRow << ", column: " << wordColumn << ", direction: " << wordDirection << ", word: "  << word << endl;
 		}
 		else 
 		{
@@ -614,7 +615,8 @@ void moveShooterAlphabet()
 		isShooterAlphabetMoving = false;
 		movingAlphabetX = SHOOTER_ALPHABET_X;
 		movingAlphabetY = SHOOTER_ALPHABET_Y;
-		shooterAlphabet = GetAlphabet();
+		shooterAlphabet = nextShooterAlphabet;
+		nextShooterAlphabet = GetAlphabet();
 
 		DisplayFunction();
 
@@ -624,9 +626,6 @@ void moveShooterAlphabet()
 		{
 			isBursting = true;
 			writeWordInFile(word);
-			score += word.length();
-
-			cout << "Word found at row: " << wordRow << ", column: " << wordColumn << ", direction: " << wordDirection << ", word: "  << word << endl;
 		}
 	}
 }
@@ -771,10 +770,6 @@ void burstWord()
 	}
 }
 
-void drawRandomAlphabetAtShooter()
-{
-	DrawAlphabet((alphabets)shooterAlphabet, SHOOTER_ALPHABET_X, SHOOTER_ALPHABET_Y, awidth, aheight);
-}
 
 void calculateSlope(int mouseX, int mouseY)
 {
