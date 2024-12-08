@@ -16,6 +16,8 @@
 #include <fstream>
 #include <cstdlib>
 #include <ctime>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include "util.h"
 using namespace std;
 #define MAX(A,B) ((A) > (B) ? (A):(B)) // defining single line functions....
@@ -52,31 +54,33 @@ GLuint mtid[nalphabets];
 constexpr int awidth = 60, aheight = 60; // 60x60 pixels cookies...
 
 // Abdul Hadi's Variables
+// static array size should be constexpr . constexpr should be knowed at run time else error
 constexpr int TOP_PADDING = 30;
 constexpr int BOTTOM_PADDING = aheight;
 constexpr int COLUMNS = width / awidth;
 constexpr int ROWS = (height - TOP_PADDING - BOTTOM_PADDING) / aheight;
 constexpr int EMPTY_CELL = -1;
 constexpr int MAX_TIME = 150; // In seconds
-int timeLeft = MAX_TIME;
-time_t start, curr;
-double slope;
-bool isShooterAlphabetMoving = false;
 constexpr int SHOOTER_ALPHABET_X = width / 2 - awidth / 2;
 constexpr int SHOOTER_ALPHABET_Y = 0;
 constexpr int NEXT_SHOOTER_ALPHABET_X = width - 2 * awidth;
 constexpr int NEXT_SHOOTER_ALPHABET_Y = 0;
-int movingAlphabetX = SHOOTER_ALPHABET_X;
-int movingAlphabetY = SHOOTER_ALPHABET_Y;
-int shooterAlphabet, nextShooterAlphabet;
 constexpr int MOVING_DISTANCE = 5;
 constexpr int MOVING_DISTANCE_SQUARE = MOVING_DISTANCE * MOVING_DISTANCE;
 constexpr int RIGHT = 1, DOWNWARD = 2, RIGHT_DOWNWARD = 3;
-int wordRow, wordColumn, wordLength, wordDirection = 0;
-bool isBursting = false;
-int currentBurstAlphabetRow, currentBurstAlphabetColumn;
 constexpr int framesToSkip = 30;
+int timeLeft = MAX_TIME;
+int movingAlphabetX = SHOOTER_ALPHABET_X;
+int movingAlphabetY = SHOOTER_ALPHABET_Y;
+int shooterAlphabet, nextShooterAlphabet;
+int wordRow, wordColumn, wordLength, wordDirection = 0;
+int currentBurstAlphabetRow, currentBurstAlphabetColumn;
 int currentFrame = 0;
+bool isShooterAlphabetMoving = false;
+bool isBursting = false;
+double slope;
+// time function ke liye ye data type zarori ha pointer wale
+time_t start, curr;
 
 ofstream file;
 
@@ -87,7 +91,7 @@ void initializeBoard();
 void displayBoard();
 void moveShooterAlphabet();
 void updateTime();
-void burstWord();
+void burstAlphabet();
 void calculateSlope(int mouseX, int mouseY);
 void writeWordInFile(string word);
 void displayGameOver();
@@ -194,6 +198,7 @@ void RegisterTextures()
 	ifile.close();
 }
 
+// ye function bubble banane ke liye ha
 void DrawAlphabet(const alphabets &cname, int sx, int sy, int cwidth = 60, int cheight = 60)
 	/*Draws a specfic cookie at given position coordinate
 	* sx = position of x-axis from left-bottom
@@ -229,6 +234,7 @@ void DrawAlphabet(const alphabets &cname, int sx, int sy, int cwidth = 60, int c
 	//glutSwapBuffers();
 }
 
+// ye fuction random alphabet deta ha through random numbers 0 - 25
 int GetAlphabet() {
 	return GetRandInRange(0, 26);
 }
@@ -245,6 +251,7 @@ void Cell2Pixels(int cx, int cy, int& px, int& py)
 	py = cy * aheight + BOTTOM_PADDING;
 }
 
+// shooter ki patti banane ke liye
 void DrawShooter(int sx, int sy, int cwidth = 60, int cheight = 60)
 {
 	float fwidth = (float)cwidth / width * 2, fheight = (float)cheight / height * 2;
@@ -304,12 +311,13 @@ void DisplayFunction() {
 		
 		if (isBursting && currentFrame == 0)
 		{
-			burstWord();
+			burstAlphabet();
 		}
 
 		currentFrame = (currentFrame + 1) % framesToSkip;
 		
 		DrawString(40, height - 20, width, height + 5, "Score " + Num2Str(score), colors[BLUE_VIOLET]);
+		DrawString(width - 250, height - 25, width, height, "Abdul Hadi 24i-2599", colors[BLACK]);
 		DrawString(width / 2 - 30, height - 25, width, height, "Time Left:" + Num2Str(timeLeft) + " secs", colors[RED]);
 
 		// #----------------- Write your code till here ----------------------------#
@@ -429,6 +437,7 @@ void Timer(int m) {
 * our gateway main function
 * */
 int main(int argc, char*argv[]) {
+
 	InitRandomizer(); // seed the random number generator...
 
 	//Dictionary for matching the words. It contains the 370099 words.
@@ -466,6 +475,12 @@ int main(int argc, char*argv[]) {
 	//// now handle the control to library and it will call our registered functions when
 	//// it deems necessary...
 
+	// lines for the music
+	SDL_Init(SDL_INIT_AUDIO);
+	Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 4096);
+	Mix_Music *bgmusic = Mix_LoadMUS("music.mp3"); // yaha par name likhna ha video ka 
+	Mix_PlayMusic(bgmusic, -1);
+	
 	glutMainLoop();
 
 	file.close();
@@ -473,6 +488,7 @@ int main(int argc, char*argv[]) {
 	return 1;
 }
 
+// is function ko aik hi bar call karna ha is liye int main me is ko call kiya ha or ye first two rows me bubbles or bakio ko empty karde ga
 void initializeBoard()
 {
 	int i;
@@ -488,14 +504,14 @@ void initializeBoard()
 	{
 		for (int j = 0; j < COLUMNS; j++)
 		{
-			board[i][j] = GetAlphabet();
+			board[i][j] = GetAlphabet(); // random number generate karne ke liye
 		}
     }
 
 	string word;
 	while (true)
 	{
-		word = findLargestWord();
+		word = findLargestWord(); // for popping the bubbles before the start of the game becoming the word of the dictionary
 
 		if (!word.empty())
 		{
@@ -524,7 +540,7 @@ void replaceWord()
 {
 	if (wordDirection == RIGHT)
 	{
-		for (int j = 0; j < wordLength + wordColumn; j++)
+		for (int j = wordColumn; j < wordLength + wordColumn; j++) // is me hum wordcolumn yani jaha se word bannana shuru howa tha waha se le kar jitne us ke lenght thi waha tak new alphabets dal diye
 		{
 			board[wordRow][j] = GetAlphabet();
 		}
@@ -555,8 +571,8 @@ void displayBoard()
 		{
 			alphabet = board[i][j];
 			if (alphabet != EMPTY_CELL)
-			{
-				Cell2Pixels(j, i, x, y);
+			{ // j or i is ke rows or column yani us ke cell ke cordinates ha
+				Cell2Pixels(j, i, x, y); // draw alphabet ko pixel condinate chaheye kiyuke wo tareke se apne cell me bubble bana de
 				DrawAlphabet((alphabets)alphabet, x, y, awidth, aheight);
 			}
 		}
@@ -571,19 +587,19 @@ bool detectCollision()
 	Pixels2Cell(movingAlphabetX, movingAlphabetY + aheight / 2, leftCX, leftCY);
 	Pixels2Cell(movingAlphabetX + awidth, movingAlphabetY + aheight / 2, rightCX, rightCY);
 
-	if (board[topCY][topCX] != EMPTY_CELL && topCY > 0)
+	if (board[topCY][topCX] != EMPTY_CELL && topCY > 0)  // row = cy and col = cx because row uper se neeche ate ha or col left se right jata ha
 	{
 		board[topCY - 1][topCX] = shooterAlphabet;
 		return true;
 	}
 	else if (board[leftCY][leftCX] != EMPTY_CELL)
 	{
-		board[leftCY][leftCX + 1] = shooterAlphabet;
+		board[leftCY][leftCX + 1] = shooterAlphabet; // +1 is waja se ke ball to exist ke right pe touch ho gi or condition hum chech left wali ki kare ge
 		return true;
 	}
 	else if (board[rightCY][rightCX] != EMPTY_CELL)
 	{
-		board[rightCY][rightCX - 1] = shooterAlphabet;
+		board[rightCY][rightCX - 1] = shooterAlphabet; // -1 is waja se ke ball to exist ke left pe touch ho gi or condition hum chech right wali ki kare ge
 		return true;
 	}
 
@@ -618,7 +634,7 @@ void moveShooterAlphabet()
 		shooterAlphabet = nextShooterAlphabet;
 		nextShooterAlphabet = GetAlphabet();
 
-		DisplayFunction();
+		DisplayFunction(); // jaldi se bubble ko sahi jaga par lage de take jab hum dictionary se check kare to bubble galat jaga par phas na jaye
 
 		string word = findLargestWord();
 	
@@ -630,6 +646,7 @@ void moveShooterAlphabet()
 	}
 }
 
+// text file me word banane ke liye ye function ha jo 0 - 25 number ko a se yani 97 se add kar ke us ke correspoding alphabets file me store kare
 char getAlphabeticChar(int alphabet)
 {
 	return alphabet + 'a';
@@ -656,7 +673,7 @@ string findLargestWord()
 	{
 		for (int j = 0; j < COLUMNS; j++)
 		{
-			for ( int k = j; k < COLUMNS; k++)
+			for ( int k = j; k < COLUMNS; k++) // ye right check karne ke liye ha
 			{
 				if (board[i][k] == EMPTY_CELL)
 				{
@@ -664,7 +681,7 @@ string findLargestWord()
 					break;
 				}
 
-				word += getAlphabeticChar(board[i][k]);
+				word += getAlphabeticChar(board[i][k]); // char ko bar bar add karke words banana ha
 
 				if (isInDictionary(word) && word.length() > largestWord.length())
 				{
@@ -677,7 +694,7 @@ string findLargestWord()
 
 			word = "";
 
-			for ( int k = i; k >= 0; k--)
+			for ( int k = i; k >= 0; k--) // ye down check karne ke liye ha
 			{
 				if (board[k][j] == EMPTY_CELL)
 				{
@@ -698,7 +715,7 @@ string findLargestWord()
 			
 			word = "";
 
-			for (int m = i, n = j; m >= 0 && n < COLUMNS; m--, n++)
+			for (int m = i, n = j; m >= 0 && n < COLUMNS; m--, n++) // ye diagonl check karne ke liye hota ha
 			{
 				if (board[m][n] == EMPTY_CELL)
 				{
@@ -719,14 +736,14 @@ string findLargestWord()
 		}
 	}
 
-	currentBurstAlphabetRow = wordRow;
+	currentBurstAlphabetRow = wordRow; // bursting kaha se shuru ho gi in se pata chale ga
 	currentBurstAlphabetColumn = wordColumn;
 
 	wordLength = largestWord.length();
 	return largestWord;
 }
 
-void burstWord()
+void burstAlphabet()
 {
 	if (wordDirection == RIGHT)
 	{
@@ -783,7 +800,7 @@ void writeWordInFile(string word)
 
 void updateTime()
 {
-	time(&curr);
+	time(&curr); // jan 1 1970 se ab tak jitne sec guzar gaye ha wo curr me dal de ga
 	timeLeft = MAX_TIME - difftime(curr, start);
 }
 
@@ -802,6 +819,5 @@ void displayGameOver()
 	DrawString(width / 2 - 80, height / 2 - 31, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
 	DrawString(width / 2 - 80, height / 2 - 29, width, height, "SCORE : " + Num2Str(score), colors[DARK_GRAY]);
 }
-
 
 #endif /* */
