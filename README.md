@@ -1,4 +1,4 @@
-# PF_Project_Word_Shooter
+# Word_Shooter
 
 ### How to Run
 
